@@ -3,11 +3,12 @@ package worker
 import (
 	"errors"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/golang-collections/collections/queue"
 	"github.com/google/uuid"
-	"log"
 	"orchestrator/task"
-	"time"
 )
 
 type Worker struct {
@@ -43,7 +44,7 @@ func (w *Worker) RunTask() task.DockerResult {
 		case task.SCHEDULED:
 			result = w.StartTask(taskQueued)
 		case task.COMPLETED:
-			result = w.StartTask(taskQueued)
+			result = w.StopTask(taskQueued)
 		default:
 			result.Error = errors.New("we should not get there")
 		}
