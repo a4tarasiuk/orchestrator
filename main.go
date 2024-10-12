@@ -30,6 +30,7 @@ func main() {
 
 	go w.RunTasks()
 	go w.CollectStats()
+	go w.UpdateTasks()
 	go workerAPI.Start()
 
 	time.Sleep(time.Second * 3)
@@ -42,6 +43,7 @@ func main() {
 
 	go m.ProcessTasks()
 	go m.UpdateTasks()
+	go m.DoHealthChecks()
 
 	managerAPI.Start()
 }

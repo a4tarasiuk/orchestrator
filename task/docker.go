@@ -2,14 +2,16 @@ package task
 
 import (
 	"context"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stdcopy"
 	"io"
 	"log"
 	"math"
 	"os"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 )
 
 type DockerContainer struct {
@@ -98,11 +100,13 @@ func (d *DockerContainer) Stop(id string) DockerResult {
 		return DockerResult{Error: err}
 	}
 
-	err = d.Client.ContainerRemove(ctx, id, container.RemoveOptions{
-		RemoveVolumes: true,
-		RemoveLinks:   false,
-		Force:         false,
-	})
+	err = d.Client.ContainerRemove(
+		ctx, id, container.RemoveOptions{
+			RemoveVolumes: true,
+			RemoveLinks:   false,
+			Force:         false,
+		},
+	)
 
 	if err != nil {
 		log.Printf("Error removing container %s: %v\n", id, err)
@@ -113,9 +117,28 @@ func (d *DockerContainer) Stop(id string) DockerResult {
 	return DockerResult{Action: "stop", Result: "success", Error: nil}
 }
 
+func (d *DockerContainer) Inspect(id string) DockerInspectResponse {
+	ctx := context.Background()
+
+	resp, err := d.Client.ContainerInspect(ctx, id)
+
+	if err != nil {
+		log.Printf("Error inspecting container: %s\n", err)
+
+		return DockerInspectResponse{Error: err}
+	}
+
+	return DockerInspectResponse{Container: &resp}
+}
+
 type DockerResult struct {
 	Error       error
 	Action      string
 	ContainerID string
 	Result      string
+}
+
+type DockerInspectResponse struct {
+	Error     error
+	Container *types.ContainerJSON
 }

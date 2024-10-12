@@ -141,3 +141,51 @@ func (w *Worker) RunTasks() {
 		time.Sleep(5 * time.Second)
 	}
 }
+
+func (w *Worker) InspectTask(t task.Task) task.DockerInspectResponse {
+	config := task.NewConfig(&t)
+
+	dockerContainer := task.NewDockerContainer(config)
+
+	return dockerContainer.Inspect(t.ContainerID)
+}
+
+func (w *Worker) UpdateTasks() {
+	for {
+		log.Println("Checking status of tasks")
+
+		w.updateTasks()
+
+		log.Println("Task updates completed")
+		log.Println("Sleeping for 15 seconds")
+
+		time.Sleep(15 * time.Second)
+	}
+}
+
+func (w *Worker) updateTasks() {
+	for id, t := range w.Db {
+		if t.State != task.RUNNING {
+			continue
+		}
+		resp := w.InspectTask(*t)
+
+		if resp.Error != nil {
+			fmt.Printf("ERROR: %v\n", resp.Error)
+		}
+
+		if resp.Container == nil {
+			log.Printf("No container for running task %s\n", id)
+			w.Db[id].State = task.FAILED
+		}
+
+		if resp.Container.State.Status == "exited" {
+			log.Printf(
+				"Container for task %s in non-running state %s",
+				id, resp.Container.State.Status,
+			)
+			w.Db[id].State = task.FAILED
+		}
+		w.Db[id].HostPorts = resp.Container.NetworkSettings.NetworkSettingsBase.Ports
+	}
+}

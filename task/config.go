@@ -27,6 +27,7 @@ func NewConfig(task *Task) *Config {
 	return &Config{
 		Name:          task.Name,
 		Image:         task.Image,
+		ExposedPorts:  task.ExposedPorts,
 		Memory:        task.Memory,
 		Disk:          task.Disk,
 		RestartPolicy: task.RestartPolicy,
