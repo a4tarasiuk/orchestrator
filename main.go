@@ -18,26 +18,21 @@ func main() {
 	workerHost := "localhost"
 	workerPort := 8001
 
-	fmt.Println("Starting Cube worker")
+	fmt.Println("Starting Cube workers")
 
-	w := worker.Worker{
-		Queue: *queue.New(),
-		Db:    make(map[uuid.UUID]*task.Task),
-		Stats: nil,
-	}
-
-	workerAPI := worker.API{Address: workerHost, Port: workerPort, Worker: &w}
-
-	go w.RunTasks()
-	go w.CollectStats()
-	go w.UpdateTasks()
-	go workerAPI.Start()
+	startWorker(workerHost, workerPort)
+	startWorker(workerHost, workerPort+1)
+	startWorker(workerHost, workerPort+2)
 
 	time.Sleep(time.Second * 3)
 
-	workers := []string{fmt.Sprintf("%s:%d", workerHost, workerPort)}
+	workers := []string{
+		fmt.Sprintf("%s:%d", workerHost, workerPort),
+		fmt.Sprintf("%s:%d", workerHost, workerPort+1),
+		fmt.Sprintf("%s:%d", workerHost, workerPort+2),
+	}
 
-	m := manager.New(workers)
+	m := manager.New(workers, "epvm")
 
 	managerAPI := manager.API{Address: managerHost, Port: managerPort, Manager: m}
 
@@ -46,4 +41,21 @@ func main() {
 	go m.DoHealthChecks()
 
 	managerAPI.Start()
+}
+
+func startWorker(host string, port int) worker.Worker {
+	w := worker.Worker{
+		Queue: *queue.New(),
+		Db:    make(map[uuid.UUID]*task.Task),
+		Stats: nil,
+	}
+
+	go w.RunTasks()
+	go w.CollectStats()
+	go w.UpdateTasks()
+
+	workerAPI := worker.API{Address: host, Port: port, Worker: &w}
+	go workerAPI.Start()
+
+	return w
 }
