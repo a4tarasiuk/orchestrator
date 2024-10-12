@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/golang-collections/collections/queue"
@@ -13,80 +12,36 @@ import (
 )
 
 func main() {
-	host := "localhost"
-	port := 8000
+	managerHost := "localhost"
+	managerPort := 8000
+
+	workerHost := "localhost"
+	workerPort := 8001
 
 	fmt.Println("Starting Cube worker")
 
 	w := worker.Worker{
 		Queue: *queue.New(),
 		Db:    make(map[uuid.UUID]*task.Task),
+		Stats: nil,
 	}
 
-	api := worker.API{Address: host, Port: port, Worker: &w}
+	workerAPI := worker.API{Address: workerHost, Port: workerPort, Worker: &w}
 
-	go runTasks(&w)
-
+	go w.RunTasks()
 	go w.CollectStats()
+	go workerAPI.Start()
 
-	go api.Start()
+	time.Sleep(time.Second * 3)
 
-	workers := []string{fmt.Sprintf("%s:%d", host, port)}
+	workers := []string{fmt.Sprintf("%s:%d", workerHost, workerPort)}
 
 	m := manager.New(workers)
 
-	time.Sleep(time.Second * 5)
+	managerAPI := manager.API{Address: managerHost, Port: managerPort, Manager: m}
 
-	for i := 0; i < 2; i++ {
-		t := task.Task{
-			ID:    uuid.New(),
-			Name:  fmt.Sprintf("test-container-%d", i),
-			State: task.SCHEDULED,
-			Image: "strm/helloworld-http",
-		}
+	go m.ProcessTasks()
+	go m.UpdateTasks()
 
-		te := task.TaskEvent{
-			ID:    uuid.New(),
-			State: task.RUNNING,
-			Task:  t,
-		}
-
-		m.AddTask(te)
-
-		m.SendWork()
-	}
-
-	go func() {
-		for {
-			fmt.Printf("[Manager] Updating tasks from %d workers\n", len(m.Workers))
-
-			m.UpdateTasks()
-
-			time.Sleep(15 * time.Second)
-		}
-	}()
-
-	for {
-		for _, t := range m.TaskDb {
-			fmt.Printf("[Manager] Task: id: %s, state: %d\n", t.ID, t.State)
-
-			time.Sleep(15 * time.Second)
-		}
-	}
-}
-
-func runTasks(w *worker.Worker) {
-	for {
-		if w.Queue.Len() != 0 {
-			if result := w.RunTask(); result.Error != nil {
-				log.Printf("Error running task: %v\n", result.Error)
-			}
-		} else {
-			log.Printf("No tasks to process currently.\n")
-		}
-
-		log.Println("Sleeping for 5 seconds.")
-
-		time.Sleep(5 * time.Second)
-	}
+	managerAPI.Start()
 }

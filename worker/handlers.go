@@ -3,10 +3,11 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	"log"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"orchestrator/task"
 )
 
@@ -78,15 +79,31 @@ func (a *API) StopTaskHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(204)
 }
 
+func (a *API) GetStatsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(a.Worker.Stats)
+}
+
 func (a *API) initRouter() {
 	a.Router = chi.NewRouter()
-	a.Router.Route("/tasks", func(r chi.Router) {
-		r.Post("/", a.StartTaskHandler)
-		r.Get("/", a.GetTasksHandler)
-		r.Route("/{taskID}", func(r chi.Router) {
-			r.Delete("/", a.StopTaskHandler)
-		})
-	})
+	a.Router.Route(
+		"/tasks", func(r chi.Router) {
+			r.Post("/", a.StartTaskHandler)
+			r.Get("/", a.GetTasksHandler)
+			r.Route(
+				"/{taskID}", func(r chi.Router) {
+					r.Delete("/", a.StopTaskHandler)
+				},
+			)
+		},
+	)
+	a.Router.Route(
+		"/stats", func(r chi.Router) {
+			r.Get("/", a.GetStatsHandler)
+		},
+	)
 }
 
 func (a *API) Start() {

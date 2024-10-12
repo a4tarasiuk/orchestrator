@@ -1,9 +1,10 @@
 package task
 
 import (
+	"time"
+
 	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
-	"time"
 )
 
 type Task struct {
@@ -15,6 +16,7 @@ type Task struct {
 
 	Image string
 
+	Cpu    float64
 	Memory int64
 	Disk   int64
 

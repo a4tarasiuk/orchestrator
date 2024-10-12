@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/golang-collections/collections/queue"
 	"github.com/google/uuid"
@@ -70,7 +71,7 @@ func (m *Manager) SelectWorker() string {
 	return m.Workers[selectedWorkerIdx]
 }
 
-func (m *Manager) UpdateTasks() {
+func (m *Manager) updateTasks() {
 	for _, w := range m.Workers {
 		log.Printf("Checking worker %v for task updates", w)
 		url := fmt.Sprintf("http://%s/tasks", w)
@@ -113,6 +114,32 @@ func (m *Manager) UpdateTasks() {
 		}
 	}
 
+}
+
+func (m *Manager) UpdateTasks() {
+	for {
+		log.Println("Checking for task updates from workers")
+
+		m.updateTasks()
+
+		log.Println("Task updates completed")
+
+		log.Println("Sleeping for 10 seconds")
+
+		time.Sleep(10 * time.Second)
+	}
+}
+
+func (m *Manager) ProcessTasks() {
+	for {
+		log.Println("Processing any tasks in the queue")
+
+		m.SendWork()
+
+		log.Println("Sleeping for 10 seconds")
+
+		time.Sleep(10 * time.Second)
+	}
 }
 
 func (m *Manager) SendWork() {
@@ -180,4 +207,14 @@ func (m *Manager) SendWork() {
 	}
 
 	log.Printf("%#v\n", taskObj)
+}
+
+func (m *Manager) GetTasks() []*task.Task {
+	var tasks []*task.Task
+
+	for _, t := range m.TaskDb {
+		tasks = append(tasks, t)
+	}
+
+	return tasks
 }
