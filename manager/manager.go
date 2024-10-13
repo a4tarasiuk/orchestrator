@@ -186,6 +186,9 @@ func (m *Manager) SendWork() {
 
 	taskEvent := event.(task.TaskEvent)
 
+	// TODO: Avoid duplication with Task
+	taskEvent.State = task.SCHEDULED
+
 	log.Printf("Pulled %v off pending queue\n", taskEvent)
 
 	err := m.TaskEventStore.Put(taskEvent.ID.String(), &taskEvent)
@@ -233,6 +236,8 @@ func (m *Manager) SendWork() {
 
 	taskToProcess.State = task.SCHEDULED
 	m.TaskStore.Put(taskToProcess.ID.String(), &taskToProcess)
+
+	taskEvent.Task = taskToProcess
 
 	data, err_ := json.Marshal(taskEvent)
 
