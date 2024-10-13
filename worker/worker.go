@@ -33,6 +33,7 @@ func (w *Worker) runTask() task.DockerResult {
 	}
 
 	taskQueued := t.(task.Task)
+	fmt.Printf("[worker] Found task in queue: %v:\n", taskQueued)
 
 	err := w.TaskStore.Put(taskQueued.ID.String(), &taskQueued)
 	if err != nil {
@@ -41,30 +42,42 @@ func (w *Worker) runTask() task.DockerResult {
 		return task.DockerResult{Error: msg}
 	}
 
-	queuedTask, err := w.TaskStore.Get(taskQueued.ID.String())
+	value, err := w.TaskStore.Get(taskQueued.ID.String())
 	if err != nil {
 		msg := fmt.Errorf("error getting task %s from database: %v", taskQueued.ID.String(), err)
 		log.Println(msg)
 		return task.DockerResult{Error: msg}
 	}
-	taskPersisted := *queuedTask.(*task.Task)
 
-	var result task.DockerResult
+	taskPersisted := *value.(*task.Task)
+
+	if taskPersisted.State == task.COMPLETED {
+		return w.StopTask(taskPersisted)
+	}
+
+	var dockerResult task.DockerResult
 
 	if task.ValidStateTransition(taskPersisted.State, taskQueued.State) {
 		switch taskQueued.State {
 		case task.SCHEDULED:
-			result = w.StartTask(taskQueued)
-		case task.COMPLETED:
-			result = w.StopTask(taskQueued)
+			if taskQueued.ContainerID != "" {
+				dockerResult = w.StopTask(taskQueued)
+				if dockerResult.Error != nil {
+					log.Printf("%v\n", dockerResult.Error)
+				}
+			}
+			dockerResult = w.StartTask(taskQueued)
 		default:
-			result.Error = errors.New("we should not get there")
+			fmt.Printf("this is a mistake. taskPersisted: %v, taskQueued: %v\n", taskPersisted, taskQueued)
+			dockerResult.Error = errors.New("we should not get here")
 		}
 	} else {
-		result.Error = fmt.Errorf("invalid transition from %v to %v", taskPersisted.State, taskQueued.State)
+		err := fmt.Errorf("invalid transition from %v to %v", taskPersisted.State, taskQueued.State)
+		dockerResult.Error = err
+		return dockerResult
 	}
 
-	return result
+	return dockerResult
 }
 
 func (w *Worker) AddTask(t task.Task) {

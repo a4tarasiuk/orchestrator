@@ -37,7 +37,7 @@ func (a *API) StartTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	a.Worker.AddTask(taskEvent.Task)
 
-	log.Printf("Added task %v\n", taskEvent.Task.ID)
+	log.Printf("Worker Added task %v\n", taskEvent.Task.ID)
 
 	w.WriteHeader(201)
 
