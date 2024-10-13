@@ -13,27 +13,48 @@ import (
 )
 
 func (a *API) StartTaskHandler(w http.ResponseWriter, r *http.Request) {
-	d := json.NewDecoder(r.Body)
-	d.DisallowUnknownFields()
-	te := task.TaskEvent{}
-	err := d.Decode(&te)
+	decoder := json.NewDecoder(r.Body)
+
+	decoder.DisallowUnknownFields()
+
+	taskToStart := task.Task{}
+
+	err := decoder.Decode(&taskToStart)
+
 	if err != nil {
 		msg := fmt.Sprintf("Error unmarshalling body: %v\n", err)
+
 		log.Printf(msg)
-		w.WriteHeader(400)
-		e := ErrorResponse{
-			HTTPStatusCode: 400,
+
+		w.WriteHeader(http.StatusBadRequest)
+
+		response := ErrorResponse{
+			HTTPStatusCode: http.StatusBadRequest,
 			Message:        msg,
 		}
-		json.NewEncoder(w).Encode(e)
+
+		json.NewEncoder(w).Encode(response)
+
 		return
 	}
 
-	a.Manager.AddTask(te)
-	log.Printf("Added task %v\n", te.Task.ID)
-	w.WriteHeader(201)
+	taskToStart.ID = uuid.New()
+	taskToStart.State = task.PENDING
 
-	json.NewEncoder(w).Encode(te.Task)
+	taskEvent := task.TaskEvent{
+		ID:        uuid.New(),
+		State:     task.PENDING,
+		Timestamp: time.Now(),
+		Task:      taskToStart,
+	}
+
+	a.Manager.AddTask(taskEvent)
+
+	log.Printf("Added task %v\n", taskToStart.ID)
+
+	w.WriteHeader(http.StatusCreated)
+
+	json.NewEncoder(w).Encode(taskToStart)
 }
 
 func (a *API) GetTasksHandler(w http.ResponseWriter, r *http.Request) {

@@ -35,7 +35,7 @@ func NewBoltDBTaskStore(file string, mode os.FileMode, bucketName string) (*Bolt
 
 	err = taskStore.CreateBucket()
 	if err != nil {
-		log.Printf("bucket already exists, will use it instead of creating new one")
+		log.Printf("bucket `%s` already exists, will use it instead of creating new one", taskStore.bucketName)
 	}
 
 	return &taskStore, nil
