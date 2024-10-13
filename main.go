@@ -5,9 +5,8 @@ import (
 	"time"
 
 	"github.com/golang-collections/collections/queue"
-	"github.com/google/uuid"
 	"orchestrator/manager"
-	"orchestrator/task"
+	"orchestrator/store"
 	"orchestrator/worker"
 )
 
@@ -32,7 +31,10 @@ func main() {
 		fmt.Sprintf("%s:%d", workerHost, workerPort+2),
 	}
 
-	m := manager.New(workers, "epvm")
+	managerTaskStore := store.NewInMemoryTaskStore()
+	managerTaskEventStore := store.NewInMemoryTaskEventStore()
+
+	m := manager.New(workers, "epvm", managerTaskStore, managerTaskEventStore)
 
 	managerAPI := manager.API{Address: managerHost, Port: managerPort, Manager: m}
 
@@ -44,10 +46,12 @@ func main() {
 }
 
 func startWorker(host string, port int) worker.Worker {
+	taskStore := store.NewInMemoryTaskStore()
+
 	w := worker.Worker{
-		Queue: *queue.New(),
-		Db:    make(map[uuid.UUID]*task.Task),
-		Stats: nil,
+		Queue:     *queue.New(),
+		Stats:     nil,
+		TaskStore: taskStore,
 	}
 
 	go w.RunTasks()
