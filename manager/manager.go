@@ -220,24 +220,24 @@ func (m *Manager) SendWork() {
 		return
 	}
 
-	taskObj := taskEvent.Task
+	taskToProcess := taskEvent.Task
 
-	_worker, err := m.SelectWorker(taskObj)
+	_worker, err := m.SelectWorker(taskToProcess)
 	if err != nil {
-		log.Printf("error selecting worker for task %s: %v\n", taskObj.ID, err)
+		log.Printf("error selecting worker for task %s: %v\n", taskToProcess.ID, err)
 	}
 
 	m.WorkerTaskMap[_worker.Name] = append(m.WorkerTaskMap[_worker.Name], taskEvent.Task.ID)
 
-	m.TaskWorkerMap[taskObj.ID] = _worker.Name
+	m.TaskWorkerMap[taskToProcess.ID] = _worker.Name
 
-	taskObj.State = task.SCHEDULED
-	m.TaskStore.Put(taskObj.ID.String(), &taskObj)
+	taskToProcess.State = task.SCHEDULED
+	m.TaskStore.Put(taskToProcess.ID.String(), &taskToProcess)
 
 	data, err_ := json.Marshal(taskEvent)
 
 	if err_ != nil {
-		log.Printf("Unnable to marshal task object: %v\n", taskObj)
+		log.Printf("Unnable to marshal task object: %v\n", taskToProcess)
 	}
 
 	url := fmt.Sprintf("http://%s/tasks", _worker.Name)
@@ -265,14 +265,14 @@ func (m *Manager) SendWork() {
 		return
 	}
 
-	taskObj = task.Task{}
-	err = responseBody.Decode(&taskObj)
+	taskToProcess = task.Task{}
+	err = responseBody.Decode(&taskToProcess)
 	if err != nil {
 		fmt.Printf("Error decoding response: %s\n", err.Error())
 		return
 	}
 
-	log.Printf("%#v\n", taskObj)
+	log.Printf("%#v\n", taskToProcess)
 }
 
 func (m *Manager) GetTasks() []*task.Task {
