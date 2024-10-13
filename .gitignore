@@ -24,3 +24,5 @@ go.work
 *.http
 
 .idea/*
+
+*.db

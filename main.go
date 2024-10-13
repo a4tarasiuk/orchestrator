@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/golang-collections/collections/queue"
@@ -31,8 +32,16 @@ func main() {
 		fmt.Sprintf("%s:%d", workerHost, workerPort+2),
 	}
 
-	managerTaskStore := store.NewInMemoryTaskStore()
-	managerTaskEventStore := store.NewInMemoryTaskEventStore()
+	var err error
+	var managerTaskStore *store.BoltDBTaskStore
+	var managerTaskEventStore *store.BoltDBTaskEventStore
+
+	managerTaskStore, err = store.NewBoltDBTaskStore("tasks.db", 0600, "tasks")
+	managerTaskEventStore, err = store.NewBoltDbTaskEventStore("events.db", 0600, "events")
+
+	if err != nil {
+		log.Fatal("Error during setup databases for Store", err)
+	}
 
 	m := manager.New(workers, "epvm", managerTaskStore, managerTaskEventStore)
 
@@ -46,7 +55,13 @@ func main() {
 }
 
 func startWorker(host string, port int) worker.Worker {
-	taskStore := store.NewInMemoryTaskStore()
+	filename := fmt.Sprintf("worker_%d_tasks.db", port)
+
+	taskStore, err := store.NewBoltDBTaskStore(filename, 0600, "tasks")
+
+	if err != nil {
+		log.Fatalf("Error during setuping db for worker %d", port)
+	}
 
 	w := worker.Worker{
 		Queue:     *queue.New(),

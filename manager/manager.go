@@ -207,12 +207,6 @@ func (m *Manager) SendWork() {
 			return
 		}
 
-		fmt.Println(
-			taskEvent.State,
-			persistedTask.State,
-			task.ValidStateTransition(persistedTask.State, taskEvent.State),
-		)
-
 		if taskEvent.State == task.COMPLETED && task.ValidStateTransition(persistedTask.State, taskEvent.State) {
 			m.stopTask(taskWorker, taskEvent.Task.ID.String())
 			return
