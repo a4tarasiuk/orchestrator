@@ -38,6 +38,8 @@ type Manager struct {
 	WorkerNodes []*node.Node
 
 	Scheduler scheduler.Scheduler
+
+	workerAPIClient WorkerAPIClient
 }
 
 func New(workers []string, schedulerType string, taskStore store.Store, eventStore store.Store) *Manager {
@@ -67,16 +69,19 @@ func New(workers []string, schedulerType string, taskStore store.Store, eventSto
 		newScheduler = &scheduler.RoundRobin{Name: "roundrobin"}
 	}
 
+	workerAPIClient := WorkerHttpAPIClient{}
+
 	return &Manager{
-		PendingEvents:  *queue.New(),
-		TaskStore:      taskStore,
-		TaskEventStore: eventStore,
-		Workers:        workers,
-		WorkerTaskMap:  workerTaskMap,
-		TaskWorkerMap:  taskWorkerMap,
-		lastWorkerIdx:  0,
-		WorkerNodes:    nodes,
-		Scheduler:      newScheduler,
+		PendingEvents:   *queue.New(),
+		TaskStore:       taskStore,
+		TaskEventStore:  eventStore,
+		Workers:         workers,
+		WorkerTaskMap:   workerTaskMap,
+		TaskWorkerMap:   taskWorkerMap,
+		lastWorkerIdx:   0,
+		WorkerNodes:     nodes,
+		Scheduler:       newScheduler,
+		workerAPIClient: workerAPIClient,
 	}
 }
 
@@ -186,9 +191,6 @@ func (m *Manager) SendWork() {
 
 	taskEvent := event.(task.TaskEvent)
 
-	// TODO: Avoid duplication with Task
-	taskEvent.State = task.SCHEDULED
-
 	log.Printf("Pulled %v off pending queue\n", taskEvent)
 
 	err := m.TaskEventStore.Put(taskEvent.ID.String(), &taskEvent)
@@ -211,7 +213,7 @@ func (m *Manager) SendWork() {
 		}
 
 		if taskEvent.State == task.COMPLETED && task.ValidStateTransition(persistedTask.State, taskEvent.State) {
-			m.stopTask(taskWorker, taskEvent.Task.ID.String())
+			m.stopTask(taskWorker, taskEvent.Task.ID)
 			return
 		}
 
@@ -233,6 +235,9 @@ func (m *Manager) SendWork() {
 	m.WorkerTaskMap[_worker.Name] = append(m.WorkerTaskMap[_worker.Name], taskEvent.Task.ID)
 
 	m.TaskWorkerMap[taskToProcess.ID] = _worker.Name
+
+	// TODO: Avoid duplication with Task
+	taskEvent.State = task.SCHEDULED
 
 	taskToProcess.State = task.SCHEDULED
 	m.TaskStore.Put(taskToProcess.ID.String(), &taskToProcess)
@@ -390,23 +395,13 @@ func (m *Manager) checkTaskHealth(t task.Task) error {
 	return nil
 }
 
-func (m *Manager) stopTask(worker string, taskID string) {
-	client := &http.Client{}
-	url := fmt.Sprintf("http://%s/tasks/%s", worker, taskID)
-	req, err := http.NewRequest("DELETE", url, nil)
+func (m *Manager) stopTask(workerHostPort string, taskID uuid.UUID) {
+	err := m.workerAPIClient.StopTask(workerHostPort, taskID)
+
 	if err != nil {
-		log.Printf("error creating request to delete task %s: %v\n", taskID, err)
-		return
+		log.Printf("error stopping task %s: %v\n", taskID, err)
 	}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Printf("error connecting to worker at %s: %v\n", url, err)
-		return
-	}
-	if resp.StatusCode != http.StatusNoContent {
-		log.Printf("Error sending request: %v\n", err)
-		return
-	}
+
 	log.Printf("task %s has been scheduled to be stopped", taskID)
 }
 
