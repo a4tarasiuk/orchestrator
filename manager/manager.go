@@ -118,10 +118,10 @@ func (m *Manager) updateTasks() {
 		for _, taskObj := range tasks {
 			log.Printf("Attempting to update task %v\n", taskObj.ID)
 
-			result, err := m.TaskStore.Get(taskObj.ID.String())
+			result, _err := m.TaskStore.Get(taskObj.ID.String())
 
-			if err != nil {
-				log.Printf("[manager] %s\n", err)
+			if _err != nil {
+				log.Printf("[manager] %s\n", _err)
 				continue
 			}
 
@@ -193,13 +193,13 @@ func (m *Manager) SendWork() {
 
 	taskWorker, ok := m.TaskWorkerMap[taskEvent.Task.ID]
 	if ok {
-		result, err := m.TaskStore.Get(taskEvent.Task.ID.String())
-		if err != nil {
+		result, _err := m.TaskStore.Get(taskEvent.Task.ID.String())
+		if _err != nil {
 			log.Printf("unable to schedule task: %s", err)
 			return
 		}
-		persistedTask, ok := result.(*task.Task)
-		if !ok {
+		persistedTask, _ok := result.(*task.Task)
+		if !_ok {
 			log.Printf("unable to convert task to task.Task type")
 			return
 		}
@@ -236,7 +236,7 @@ func (m *Manager) SendWork() {
 
 	taskEvent.Task = taskToProcess
 
-	if err := m.workerAPIClient.StartTask(_worker.Name, taskEvent); err != nil {
+	if _err := m.workerAPIClient.StartTask(_worker.Name, taskEvent); _err != nil {
 		log.Printf("Error starting task %s on worker %s\n", taskToProcess.ID, _worker.Name)
 
 		m.PendingEvents.Enqueue(taskEvent)
