@@ -16,6 +16,8 @@ import (
 	"orchestrator/task"
 )
 
+const TaskMaxRestarts = 3
+
 type Manager struct {
 	PendingEvents queue.Queue
 
@@ -257,16 +259,19 @@ func (m *Manager) GetTasks() []*task.Task {
 }
 
 func (m *Manager) doHealthChecks() {
-	for _, t := range m.GetTasks() {
-		if t.State == task.RUNNING && t.RestartCount < 3 {
-			err := m.checkTaskHealth(*t)
-			if err != nil {
-				if t.RestartCount < 3 {
-					m.restartTask(t)
-				}
+	for _, _task := range m.GetTasks() {
+
+		if _task.RestartCount >= TaskMaxRestarts {
+			continue
+		}
+
+		if _task.State == task.RUNNING {
+			if err := m.checkTaskHealth(*_task); err != nil {
+				m.restartTask(_task)
 			}
-		} else if t.State == task.FAILED && t.RestartCount < 3 {
-			m.restartTask(t)
+
+		} else if _task.State == task.FAILED {
+			m.restartTask(_task)
 		}
 	}
 }
