@@ -7,11 +7,12 @@ make a few improvements to get some extra experience with Go by working on a rel
 
 
 ## Next improvements
-* Simplify a Manager API to reduce a number of service fields user need to pass (task event and IDs)
-* Replace a Worker Rest API with gRPC
-* Cover functionality with tests
-* Make a stronger abstraction over docker client
-* Reduce the complexity of Manager and Worker by introducing an extra layers for business logic
-* Publish task events to a message stream
-* Make a stronger interface for Store by returning explicit data types
-* Introduce an Analytics API
+* [X] ~~Simplify a Manager API to reduce a number of service fields user need to pass (task event and IDs)~~
+* [X] ~~Wrap Manager's Worker API calls with an extra layer~~
+* [ ] Replace a Worker Rest API with gRPC
+* [ ] Cover functionality with tests
+* [ ] Make a stronger abstraction over docker client
+* [ ] Reduce the complexity of Manager and Worker by introducing an extra layers for business logic
+* [ ] Publish task events to a message stream
+* [ ] Make a stronger interface for Store by returning explicit data types
+* [ ] Introduce an Analytics API
