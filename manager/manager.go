@@ -108,19 +108,11 @@ func (m *Manager) SelectWorker(t task.Task) (*node.Node, error) {
 func (m *Manager) updateTasks() {
 	for _, w := range m.Workers {
 		log.Printf("Checking worker %v for task updates", w)
-		url := fmt.Sprintf("http://%s/tasks", w)
-		resp, err := http.Get(url)
+
+		tasks, err := m.workerAPIClient.GetTasks(w)
+
 		if err != nil {
-			log.Printf("Error connecting to %v: %v\n", w, err)
-		}
-		if resp.StatusCode != http.StatusOK {
-			log.Printf("Error sending request: %v\n", err)
-		}
-		d := json.NewDecoder(resp.Body)
-		var tasks []*task.Task
-		err = d.Decode(&tasks)
-		if err != nil {
-			log.Printf("Error unmarshalling tasks: %s\n", err.Error())
+			log.Println(err)
 		}
 
 		for _, taskObj := range tasks {
