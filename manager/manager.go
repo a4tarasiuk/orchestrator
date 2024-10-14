@@ -35,10 +35,16 @@ type Manager struct {
 
 	Scheduler scheduler.Scheduler
 
-	workerAPIClient WorkerAPIClient
+	workerClient WorkerClient
 }
 
-func New(workers []string, schedulerType string, taskStore store.Store, eventStore store.Store) *Manager {
+func New(
+	workers []string,
+	schedulerType string,
+	taskStore store.Store,
+	eventStore store.Store,
+	workerClient WorkerClient,
+) *Manager {
 	workerTaskMap := make(map[string][]uuid.UUID)
 
 	var nodes []*node.Node
@@ -65,19 +71,17 @@ func New(workers []string, schedulerType string, taskStore store.Store, eventSto
 		newScheduler = &scheduler.RoundRobin{Name: "roundrobin"}
 	}
 
-	workerAPIClient := WorkerHttpAPIClient{}
-
 	return &Manager{
-		PendingEvents:   *queue.New(),
-		TaskStore:       taskStore,
-		TaskEventStore:  eventStore,
-		Workers:         workers,
-		WorkerTaskMap:   workerTaskMap,
-		TaskWorkerMap:   taskWorkerMap,
-		lastWorkerIdx:   0,
-		WorkerNodes:     nodes,
-		Scheduler:       newScheduler,
-		workerAPIClient: workerAPIClient,
+		PendingEvents:  *queue.New(),
+		TaskStore:      taskStore,
+		TaskEventStore: eventStore,
+		Workers:        workers,
+		WorkerTaskMap:  workerTaskMap,
+		TaskWorkerMap:  taskWorkerMap,
+		lastWorkerIdx:  0,
+		WorkerNodes:    nodes,
+		Scheduler:      newScheduler,
+		workerClient:   workerClient,
 	}
 }
 
@@ -105,7 +109,7 @@ func (m *Manager) updateTasks() {
 	for _, w := range m.Workers {
 		log.Printf("Checking worker %v for task updates", w)
 
-		tasks, err := m.workerAPIClient.GetTasks(w)
+		tasks, err := m.workerClient.GetTasks(w)
 
 		if err != nil {
 			log.Println(err)
@@ -232,7 +236,7 @@ func (m *Manager) SendWork() {
 
 	taskEvent.Task = taskToProcess
 
-	if _err := m.workerAPIClient.StartTask(_worker.Name, taskEvent); _err != nil {
+	if _err := m.workerClient.StartTask(_worker.Name, taskEvent); _err != nil {
 		log.Printf("Error starting task %s on worker %s\n", taskToProcess.ID, _worker.Name)
 
 		m.PendingEvents.Enqueue(taskEvent)
@@ -282,7 +286,7 @@ func (m *Manager) restartTask(t *task.Task) {
 		Task:      *t,
 	}
 
-	err := m.workerAPIClient.StartTask(workerHostPort, taskEvent)
+	err := m.workerClient.StartTask(workerHostPort, taskEvent)
 
 	if err != nil {
 		log.Printf("Error restarting task %s\n", t.ID)
@@ -315,7 +319,7 @@ func (m *Manager) checkTaskHealth(t task.Task) error {
 
 	log.Printf("Calling health check for task %s: %+v\n", t.ID, taskDestination)
 
-	taskHealth, err := m.workerAPIClient.GetTaskHealth(taskDestination)
+	taskHealth, err := m.workerClient.GetTaskHealth(taskDestination)
 
 	if err != nil {
 		msg := fmt.Sprintf("Error health check for task %s\n", t.ID)
@@ -335,7 +339,7 @@ func (m *Manager) checkTaskHealth(t task.Task) error {
 }
 
 func (m *Manager) stopTask(workerHostPort string, taskID uuid.UUID) {
-	err := m.workerAPIClient.StopTask(workerHostPort, taskID)
+	err := m.workerClient.StopTask(workerHostPort, taskID)
 
 	if err != nil {
 		log.Printf("error stopping task %s: %v\n", taskID, err)

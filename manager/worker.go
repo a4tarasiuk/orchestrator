@@ -14,7 +14,7 @@ import (
 )
 
 type (
-	WorkerAPIClient interface {
+	WorkerClient interface {
 		StartTask(workerHostPort string, taskEvent task.TaskEvent) error
 
 		StopTask(workerHostPort string, taskID uuid.UUID) error
@@ -41,10 +41,10 @@ type (
 	}
 )
 
-type WorkerHttpAPIClient struct {
+type WorkerHTTPClient struct {
 }
 
-func (wc WorkerHttpAPIClient) StartTask(workerHostPort string, taskEvent task.TaskEvent) error {
+func (wc WorkerHTTPClient) StartTask(workerHostPort string, taskEvent task.TaskEvent) error {
 	data, err_ := json.Marshal(taskEvent)
 
 	if err_ != nil {
@@ -78,7 +78,7 @@ func (wc WorkerHttpAPIClient) StartTask(workerHostPort string, taskEvent task.Ta
 	return nil
 }
 
-func (wc WorkerHttpAPIClient) StopTask(workerHostPort string, taskID uuid.UUID) error {
+func (wc WorkerHTTPClient) StopTask(workerHostPort string, taskID uuid.UUID) error {
 	client := &http.Client{}
 
 	url := fmt.Sprintf("http://%s/tasks/%s", workerHostPort, taskID)
@@ -104,7 +104,7 @@ func (wc WorkerHttpAPIClient) StopTask(workerHostPort string, taskID uuid.UUID) 
 	return nil
 }
 
-func (wc WorkerHttpAPIClient) GetTasks(workerHostPort string) ([]*task.Task, error) {
+func (wc WorkerHTTPClient) GetTasks(workerHostPort string) ([]*task.Task, error) {
 	url := fmt.Sprintf("http://%s/tasks", workerHostPort)
 
 	response, err := http.Get(url)
@@ -136,7 +136,7 @@ func (wc WorkerHttpAPIClient) GetTasks(workerHostPort string) ([]*task.Task, err
 	return tasks, nil
 }
 
-func (wc WorkerHttpAPIClient) GetTaskHealth(healthRequest WorkerTaskHealthRequest) (*WorkerTaskHealthResult, error) {
+func (wc WorkerHTTPClient) GetTaskHealth(healthRequest WorkerTaskHealthRequest) (*WorkerTaskHealthResult, error) {
 
 	url := fmt.Sprintf("http://%s:%s%s", healthRequest.Host, healthRequest.Port, healthRequest.Path)
 
