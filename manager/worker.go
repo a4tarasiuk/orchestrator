@@ -33,8 +33,6 @@ type (
 	}
 
 	WorkerTaskHealthResult struct {
-		WorkerID uuid.UUID
-
 		TaskID uuid.UUID
 
 		IsHealthy bool
