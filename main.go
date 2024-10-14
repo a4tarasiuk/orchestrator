@@ -21,15 +21,15 @@ func main() {
 	fmt.Println("Starting Cube workers")
 
 	startWorker(workerHost, workerPort)
-	startWorker(workerHost, workerPort+1)
-	startWorker(workerHost, workerPort+2)
-
+	// startWorker(workerHost, workerPort+1)
+	// startWorker(workerHost, workerPort+2)
+	//
 	time.Sleep(time.Second * 3)
 
 	workers := []string{
 		fmt.Sprintf("%s:%d", workerHost, workerPort),
-		fmt.Sprintf("%s:%d", workerHost, workerPort+1),
-		fmt.Sprintf("%s:%d", workerHost, workerPort+2),
+		// fmt.Sprintf("%s:%d", workerHost, workerPort+1),
+		// fmt.Sprintf("%s:%d", workerHost, workerPort+2),
 	}
 
 	var err error
@@ -43,7 +43,9 @@ func main() {
 		log.Fatal("Error during setup databases for Store", err)
 	}
 
-	m := manager.New(workers, "epvm", managerTaskStore, managerTaskEventStore)
+	workerClient := manager.WorkerHTTPClient{}
+
+	m := manager.New(workers, "epvm", managerTaskStore, managerTaskEventStore, workerClient)
 
 	managerAPI := manager.API{Address: managerHost, Port: managerPort, Manager: m}
 
