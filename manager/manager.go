@@ -371,27 +371,33 @@ func (m *Manager) DoHealthChecks() {
 }
 
 func (m *Manager) checkTaskHealth(t task.Task) error {
-	log.Printf("Calling health check for task %s: %s\n", t.ID, t.HealthCheck)
+	workerHostPort := m.TaskWorkerMap[t.ID]
 
-	w := m.TaskWorkerMap[t.ID]
-	hostPort := getHostPort(t.HostPorts)
-	workerParts := strings.Split(w, ":")
+	taskDestination := WorkerTaskHealthRequest{
+		TaskID: t.ID,
+		Host:   strings.Split(workerHostPort, ":")[0],
+		Port:   *getHostPort(t.HostPorts),
+		Path:   t.HealthCheck,
+	}
 
-	url := fmt.Sprintf("http://%s:%s%s", workerParts[0], *hostPort, t.HealthCheck)
-	log.Printf("Calling health check for task %s: %s\n", t.ID, url)
-	resp, err := http.Get(url)
+	log.Printf("Calling health check for task %s: %+v\n", t.ID, taskDestination)
+
+	taskHealth, err := m.workerAPIClient.GetTaskHealth(taskDestination)
+
 	if err != nil {
-		msg := fmt.Sprintf("Error connecting to health check %s", url)
-		log.Println(msg)
-		return errors.New(msg)
-	}
-	if resp.StatusCode != http.StatusOK {
-		msg := fmt.Sprintf("Error health check for task %s did not return 200\n", t.ID)
-		log.Println(msg)
+		msg := fmt.Sprintf("Error health check for task %s\n", t.ID)
+		log.Print(msg)
+
 		return errors.New(msg)
 	}
 
-	log.Printf("Task %s health check response: %v\n", t.ID, resp.StatusCode)
+	if !taskHealth.IsHealthy {
+		msg := fmt.Sprintf("Task %s is not healthy\n", t.ID)
+		log.Printf(msg)
+
+		return errors.New(msg)
+	}
+
 	return nil
 }
 
