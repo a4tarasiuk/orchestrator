@@ -238,51 +238,19 @@ func (m *Manager) SendWork() {
 
 	// TODO: Avoid duplication with Task
 	taskEvent.State = task.SCHEDULED
-
 	taskToProcess.State = task.SCHEDULED
+
 	m.TaskStore.Put(taskToProcess.ID.String(), &taskToProcess)
 
 	taskEvent.Task = taskToProcess
 
-	data, err_ := json.Marshal(taskEvent)
-
-	if err_ != nil {
-		log.Printf("Unnable to marshal task object: %v\n", taskToProcess)
-	}
-
-	url := fmt.Sprintf("http://%s/tasks", _worker.Name)
-
-	response, _err := http.Post(url, "application/json", bytes.NewBuffer(data))
-
-	if _err != nil {
-		log.Printf("Error connecting to %v: %v\n", _worker, _err)
+	if err := m.workerAPIClient.StartTask(_worker.Name, taskEvent); err != nil {
+		log.Printf("Error starting task %s on worker %s\n", taskToProcess.ID, _worker.Name)
 
 		m.PendingEvents.Enqueue(taskEvent)
 
 		return
 	}
-
-	responseBody := json.NewDecoder(response.Body)
-
-	if response.StatusCode != http.StatusCreated {
-		errResponse := worker.ErrorResponse{}
-		err = responseBody.Decode(&errResponse)
-		if err != nil {
-			fmt.Printf("Error decoding response: %s\n", err.Error())
-			return
-		}
-		log.Printf("Response error (%d): %s", errResponse.HTTPStatusCode, errResponse.Message)
-		return
-	}
-
-	taskToProcess = task.Task{}
-	err = responseBody.Decode(&taskToProcess)
-	if err != nil {
-		fmt.Printf("Error decoding response: %s\n", err.Error())
-		return
-	}
-
-	log.Printf("%#v\n", taskToProcess)
 }
 
 func (m *Manager) GetTasks() []*task.Task {
