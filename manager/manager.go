@@ -1,12 +1,9 @@
 package manager
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"strings"
 	"time"
 
@@ -17,7 +14,6 @@ import (
 	"orchestrator/scheduler"
 	"orchestrator/store"
 	"orchestrator/task"
-	"orchestrator/worker"
 )
 
 type Manager struct {
@@ -272,48 +268,25 @@ func (m *Manager) doHealthChecks() {
 }
 
 func (m *Manager) restartTask(t *task.Task) {
-	w := m.TaskWorkerMap[t.ID]
+	workerHostPort := m.TaskWorkerMap[t.ID]
+
 	t.State = task.SCHEDULED
 	t.RestartCount++
+
 	m.TaskStore.Put(t.ID.String(), t)
 
-	te := task.TaskEvent{
+	taskEvent := task.TaskEvent{
 		ID:        uuid.New(),
 		State:     task.RUNNING,
 		Timestamp: time.Now(),
 		Task:      *t,
 	}
 
-	data, err := json.Marshal(te)
+	err := m.workerAPIClient.StartTask(workerHostPort, taskEvent)
+
 	if err != nil {
-		log.Printf("Unable to marshal task object: %v.", t)
-		return
+		log.Printf("Error restarting task %s\n", t.ID)
 	}
-	url := fmt.Sprintf("http://%s/tasks", w)
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(data))
-	if err != nil {
-		log.Printf("Error connecting to %v: %v", w, err)
-		m.PendingEvents.Enqueue(t)
-		return
-	}
-	d := json.NewDecoder(resp.Body)
-	if resp.StatusCode != http.StatusCreated {
-		e := worker.ErrResponse{}
-		err := d.Decode(&e)
-		if err != nil {
-			fmt.Printf("Error decoding response: %s\n", err.Error())
-			return
-		}
-		log.Printf("Response error (%d): %s", e.HTTPStatusCode, e.Message)
-		return
-	}
-	newTask := task.Task{}
-	err = d.Decode(&newTask)
-	if err != nil {
-		fmt.Printf("Error decoding response: %s\n", err.Error())
-		return
-	}
-	log.Printf("%#v\n", t)
 }
 
 func (m *Manager) DoHealthChecks() {
